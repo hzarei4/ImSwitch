@@ -17,18 +17,25 @@ class SignalExtractor:
         self.__logger = initLogger(self)
 
         if os.name != 'nt':
-            raise RuntimeError('This module does unfortunately currently not support non-Windows'
-                               ' operating systems.')
+            ctypes.cdll.LoadLibrary('/usr/local/cuda-12.1/targets/x86_64-linux/lib/libcudart.so')
+            self.ReconstructionDLL = ctypes.cdll.LoadLibrary('~/Downloads/ImSwitch_win/imswitch/_data/libs/GPU_acc_recon.dll')
+            raise Warning("You have to include the cuda libraries to the program - Hossein")
+            #raise RuntimeError('This module does unfortunately currently not support non-Windows'
+            #                   ' operating systems.')
 
         # TODO: Support non-Windows OS
         # This is needed by the DLL containing CUDA code.
         # ctypes.cdll.LoadLibrary(os.environ['CUDA_PATH_V9_0'] + '\\bin\\cudart64_90.dll')
+        """
         ctypes.cdll.LoadLibrary(
             os.path.join(dirtools.DataFileDirs.Libs, 'cudart64_90.dll')
         )
         self.ReconstructionDLL = ctypes.cdll.LoadLibrary(
             os.path.join(dirtools.DataFileDirs.Libs, 'GPU_acc_recon.dll')
         )
+        """ 
+        
+        
 
     def make3dPtrArray(self, inData):
         assert len(np.shape(inData)) == 3, \
