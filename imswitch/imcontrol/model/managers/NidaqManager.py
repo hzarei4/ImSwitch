@@ -5,10 +5,14 @@ import warnings
 import nidaqmx
 import nidaqmx._lib
 import nidaqmx.constants
+from nidaqmx.stream_writers import AnalogSingleChannelWriter
 import numpy as np
 
 from imswitch.imcommon.framework import Signal, SignalInterface, Thread
 from imswitch.imcommon.model import initLogger
+
+
+import datetime, time
 
 
 class NidaqManager(SignalInterface):
@@ -33,6 +37,17 @@ class NidaqManager(SignalInterface):
         self.__timerCounterChannel = setupInfo.nidaq.getTimerCounterChannel()
         self.__startTrigger = setupInfo.nidaq.startTrigger
 
+        acquisitionTypeFinite = nidaqmx.constants.AcquisitionType.FINITE
+        scanclock = r'1MHzTimebase'
+        scanSampsInScan = len(AOsignals[0])
+        self.__logger.debug(f'Total scan samples in scan: {scanSampsInScan}')
+        self.aoTask = self.__createChanAOTask('ScanAOTask', AOchannels,
+                                              acquisitionTypeFinite, scanclock,
+                                              1000000, min_val=0, max_val=5,
+                                              sampsInScan=scanSampsInScan,
+                                              starttrig=True)
+        self.tasks['ao'] = self.aoTask
+
     def __del__(self):
         for taskWaiter in [self.doTaskWaiter, self.aoTaskWaiter, self.timerTaskWaiter]:
             if taskWaiter is not None:
@@ -54,8 +69,8 @@ class NidaqManager(SignalInterface):
         return targetPairs
 
     def __createChanAOTask(self, name, channels, acquisitionType, source, rate,
-                           min_val=-1, max_val=1, sampsInScan=1000, starttrig=False,
-                           reference_trigger='ai/StartTrigger'):
+                           min_val=0, max_val=5, sampsInScan=1000000, starttrig=False,
+                           reference_trigger='/Dev1/APFI0'):
         """ Simplified function to create an analog output task """
         #self.__logger.debug(f'Create AO task: {name}')
         aotask = nidaqmx.Task(name)
@@ -65,15 +80,16 @@ class NidaqManager(SignalInterface):
             aotask.ao_channels.add_ao_voltage_chan(channel,
                                                    min_val=min_val,
                                                    max_val=max_val)
-        aotask.timing.cfg_samp_clk_timing(source=source,
+        aotask.timing.cfg_samp_clk_timing(#source=source,
                                           rate=rate,
                                           sample_mode=acquisitionType,
-                                          samps_per_chan=sampsInScan)
-        if starttrig:
-            aotask.triggers.start_trigger.cfg_dig_edge_start_trig(reference_trigger)
+                                          samps_per_chan=sampsInScan,
+                                          )
+        # moved starttrig after writing the samples
+            
         return aotask
 
-    def __createLineDOTask(self, name, lines, acquisitionType, source, rate, sampsInScan=1000,
+    def __createLineDOTask(self, name, lines, acquisitionType, source, rate, sampsInScan=1000000,
                            starttrig=False, reference_trigger='ai/StartTrigger'):
         """ Simplified function to create a digital output task """
         dotask = nidaqmx.Task(name)
@@ -90,9 +106,10 @@ class NidaqManager(SignalInterface):
         #self.__logger.debug(f'Created DO task: {name}')
         return dotask
 
-    def __createChanCITask(self, name, channel, acquisitionType, source, rate, sampsInScan=1000,
+    def __createChanCITask(self, name, channel, acquisitionType, source, rate, sampsInScan=1000000,
                            starttrig=False, reference_trigger='ai/StartTrigger', terminal='PFI0'):
         """ Simplified function to create a counter input task """
+        print("CI Task!!!")
         citask = nidaqmx.Task(name)
         citaskchannel = citask.ci_channels.add_ci_count_edges_chan(
             channel,
@@ -120,7 +137,7 @@ class NidaqManager(SignalInterface):
         #self.__logger.debug(f'Created CI task: {name}')
         return citask
 
-    def __createChanCOTask(self, name, channel, rate, sampsInScan=1000, starttrig=False,
+    def __createChanCOTask(self, name, channel, rate, sampsInScan=1000000, starttrig=False,
                            reference_trigger='ai/StartTrigger'):
         cotask = nidaqmx.Task(name)
         self.cotaskchannel = cotask.co_channels.add_co_pulse_chan_freq(
@@ -138,13 +155,13 @@ class NidaqManager(SignalInterface):
         return cotask
 
     def __createChanAITask(self, name, channels, acquisitionType, source, rate,
-                           min_val=-0.5, max_val=10.0, sampsInScan=1000, starttrig=False,
+                           min_val=-0.5, max_val=10.0, sampsInScan=1000000, starttrig=False,
                            reference_trigger='ai/StartTrigger'):
         """ Simplified function to create an analog input task """
         aitask = nidaqmx.Task(name)
         for channel in channels:
             aitask.ai_channels.add_ai_voltage_chan(channel)
-        aitask.timing.cfg_samp_clk_timing(source=source,
+        aitask.timing.cfg_samp_clk_timing(#source=source,
                                           rate=rate,
                                           sample_mode=acquisitionType,
                                           samps_per_chan=sampsInScan)
@@ -183,8 +200,8 @@ class NidaqManager(SignalInterface):
                     dotask = self.__createLineDOTask('setDigitalTask',
                                                         line,
                                                         acquisitionTypeFinite,
-                                                        r'100kHzTimebase',
-                                                        100000,
+                                                        r'1MHzTimebase',
+                                                        1000000,
                                                         tasklen,
                                                         False)
                     # signal = np.array([enable])
@@ -221,8 +238,8 @@ class NidaqManager(SignalInterface):
                     aotask = self.__createChanAOTask('setAnalogTask',
                                                      channel,
                                                      acquisitionTypeFinite,
-                                                     r'100kHzTimebase',
-                                                     100000, min_val, max_val, tasklen, False)
+                                                     r'1MHzTimebase',
+                                                     1000000, min_val, max_val, tasklen, False)
 
                     signal = voltage * np.ones(tasklen, dtype=float)
                     try:
@@ -249,7 +266,7 @@ class NidaqManager(SignalInterface):
             self.busy = True
             self.signalSent = False
             self.__logger.debug('Create nidaq scan...')
-
+            
             try:
                 # TODO: fill this
                 stageDic = signalDic['scanSignalsDict']
@@ -314,32 +331,33 @@ class NidaqManager(SignalInterface):
                     )
                     self.tasks['timer'] = self.timerTask
                 acquisitionTypeFinite = nidaqmx.constants.AcquisitionType.FINITE
-                scanclock = r'100kHzTimebase'
+                scanclock = r'1MHzTimebase'
                 clockDO = scanclock
+                
                 if len(AOsignals) > 0:
-                    scanSampsInScan = len(AOsignals[0])
-                    self.__logger.debug(f'Total scan samples in scan: {scanSampsInScan}')
-                    self.aoTask = self.__createChanAOTask('ScanAOTask', AOchannels,
-                                                          acquisitionTypeFinite, scanclock,
-                                                          100000, min_val=-10, max_val=10,
-                                                          sampsInScan=scanSampsInScan,
-                                                          starttrig=False)
-                    self.tasks['ao'] = self.aoTask
+
+                    #----------------------------------------------------------------------------------
+
+                    #----------------------------------------------------------------------------------
 
                     # Important to squeeze the array, otherwise we might get an "invalid number of
                     # channels" error
-                    self.aoTask.write(np.array(AOsignals).squeeze(), auto_start=False)
+                    #self.aoTask.write(np.array(AOsignals).squeeze(), auto_start=False, timeout=0)
+                    
+                    self.test_writer = AnalogSingleChannelWriter(self.aoTask.out_stream)
+                    self.test_writer.write_many_sample(np.array(AOsignals).squeeze())
 
                     self.aoTaskWaiter.connect(self.aoTask)
                     self.aoTaskWaiter.sigWaitDone.connect(
                         lambda: self.taskDone('ao', self.aoTaskWaiter)
                     )
                     clockDO = r'ao/SampleClock'
+
                 if len(DOsignals) > 0:
                     scanSampsInScan = len(DOsignals[0])
                     self.doTask = self.__createLineDOTask('ScanDOTask', DOlines,
                                                           acquisitionTypeFinite, clockDO,
-                                                          100000, sampsInScan=scanSampsInScan,
+                                                          1000000, sampsInScan=scanSampsInScan,
                                                           starttrig=self.__startTrigger,
                                                           reference_trigger='ao/StartTrigger')
                     self.tasks['do'] = self.doTask
@@ -370,10 +388,15 @@ class NidaqManager(SignalInterface):
                     self.doTaskWaiter.start()
 
                 if len(AOsignals) > 0:
+                    self.tasks['ao'].triggers.start_trigger.cfg_anlg_edge_start_trig(trigger_source="/Dev1/APFI0",
+                                                                   trigger_slope= nidaqmx.constants.Slope.FALLING,
+                                                                   trigger_level=3.0
+                                                                   )
                     self.tasks['ao'].start()
                     self.aoTaskWaiter.start()
                 self.sigScanStarted.emit()
                 self.__logger.info('Nidaq scan started!')
+                
 
     def stopTask(self, taskName):
         self.tasks[taskName].stop()
@@ -417,6 +440,7 @@ class WaitThread(Thread):
     def run(self):
         if self.running:
             self.task.wait_until_done(nidaqmx.constants.WAIT_INFINITELY)
+            #time.sleep(0.1) #float(self._widget.nImages.text()) * 0.1)
             self.close()
         else:
             self.quit()

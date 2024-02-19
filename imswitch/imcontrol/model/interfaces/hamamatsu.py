@@ -793,7 +793,21 @@ class HamamatsuCameraMR(HamamatsuCamera):
         self.hcam_ptr = False
         self.old_frame_bytes = -1
 
-        self.setPropertyValue("output_trigger_kind[0]", 2)
+        self.setPropertyValue("trigger_active", 1)
+        self.setPropertyValue("trigger_global_exposure", 1)
+        self.setPropertyValue("output_trigger_kind", 4) # Trigger ready
+        self.setPropertyValue("output_trigger_polarity", 2)
+        #self.setPropertyValue("output_trigger_period", 0.002)
+        
+        
+        self.setPropertyValue("trigger_source", 2)
+        self.setPropertyValue("trigger_polarity", 2)
+
+
+        #self.setPropertyValue("trigger_active", 0)
+
+
+
 
     # ## getFrames
     #

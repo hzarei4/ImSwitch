@@ -1,9 +1,14 @@
 import traceback
 import configparser
 
+import numpy as np
+import serial, time
+
 from ast import literal_eval
 
 from ..basecontrollers import SuperScanController
+from imswitch.imcommon.view.guitools import colorutils
+from imswitch.imcommon.model import APIExport
 
 
 class ScanControllerBase(SuperScanController):
@@ -17,11 +22,14 @@ class ScanControllerBase(SuperScanController):
         )
 
         self.updatePixels()
+        self.updateParameters()
+        self.updateScanTime()
         self.updateScanStageAttrs()
         self.updateScanTTLAttrs()
 
         # Connect ScanWidget signals
         self._widget.sigContLaserPulsesToggled.connect(self.setContLaserPulses)
+        self.ard = serial.Serial("COM12", 9600, write_timeout=0.05)
 
     def setParameters(self):
         self.settingParameters = True
@@ -33,8 +41,10 @@ class ScanControllerBase(SuperScanController):
                                          self._analogParameterDict['axis_length'][i])
                 self._widget.setScanStepSize(positionerName,
                                              self._analogParameterDict['axis_step_size'][i])
-                self._widget.setScanCenterPos(positionerName,
-                                              self._analogParameterDict['axis_centerpos'][i])
+                self._widget.setScanStartPos(positionerName,
+                                              self._analogParameterDict['axis_startpos'][i])
+                self._widget.setScanStartPos(positionerName,
+                                              self._analogParameterDict['axis_start_time'][i])
 
             setTTLDevices = []
             for i in range(len(self._digitalParameterDict['target_device'])):
@@ -51,6 +61,23 @@ class ScanControllerBase(SuperScanController):
         finally:
             self.settingParameters = False
             self.plotSignalGraph()
+
+    def runTakeImage(self) -> None:
+        print("taking Image!")
+        self.ard.write((str(self._widget.nImages.text()) + '\n').encode())
+
+
+    @APIExport(runOnUIThread=True)
+    def runTakeImageAPI(self, n_images : float) -> None:
+        self.ard.write((str(n_images) + '\n').encode())
+
+
+    def writeAnalogOutput(self):
+        try:
+            self._master.nidaqManager.runScan(self.signalDict, self.scanInfoDict)
+        except Exception:
+            self._logger.error(traceback.format_exc())
+
 
     def runScanAdvanced(self, *, recalculateSignals=True, isNonFinalPartOfSequence=False,
                         sigScanStartingEmitted):
@@ -98,6 +125,8 @@ class ScanControllerBase(SuperScanController):
         else:
             self.runScanAdvanced(sigScanStartingEmitted=True)
 
+
+
     def getParameters(self):
         if self.settingParameters:
             return
@@ -106,6 +135,8 @@ class ScanControllerBase(SuperScanController):
         self._analogParameterDict['axis_step_size'] = []
         self._analogParameterDict['axis_centerpos'] = []
         self._analogParameterDict['axis_startpos'] = []
+        self._analogParameterDict['axis_start_time'] = []
+        self._analogParameterDict['scan_time_edit'] = []
         self._positionersScan = []
         for i in range(len(self.positioners)):
             self._positionersScan.append(self._widget.getScanDim(i))
@@ -113,24 +144,31 @@ class ScanControllerBase(SuperScanController):
             if positionerName != 'None':
                 size = self._widget.getScanSize(positionerName)
                 stepSize = self._widget.getScanStepSize(positionerName)
-                center = self._widget.getScanCenterPos(positionerName)
-                start = list(self._master.positionersManager[positionerName].position.values())
+                start = self._widget.getScanStartPos(positionerName)
+                start_time = self._widget.getScanStartTime(positionerName) 
+                scan_time_edit = self._widget.getScanTimeEdit(positionerName)
+
+                #start = list(self._master.positionersManager[positionerName].position.values())
                 self._analogParameterDict['target_device'].append(positionerName)
                 self._analogParameterDict['axis_length'].append(size)
                 self._analogParameterDict['axis_step_size'].append(stepSize)
-                self._analogParameterDict['axis_centerpos'].append(center)
-                self._analogParameterDict['axis_startpos'].append(start)
+                self._analogParameterDict['axis_centerpos'].append([0])
+                self._analogParameterDict['axis_startpos'].append([start])
+                self._analogParameterDict['axis_start_time'].append([start_time])
+                self._analogParameterDict['scan_time_edit'].append([scan_time_edit])
         for positionerName in self.positioners:
             if positionerName not in self._positionersScan:
                 size = 1.0
                 stepSize = 1.0
-                center = self._widget.getScanCenterPos(positionerName)
+                center = self._widget.getScanStartPos(positionerName)
                 start = [0]
                 self._analogParameterDict['target_device'].append(positionerName)
                 self._analogParameterDict['axis_length'].append(size)
                 self._analogParameterDict['axis_step_size'].append(stepSize)
                 self._analogParameterDict['axis_centerpos'].append(center)
                 self._analogParameterDict['axis_startpos'].append(start)
+                self._analogParameterDict['axis_start_time'].append(start_time)
+                self._analogParameterDict['scan_time_edit'].append([scan_time_edit])
 
         self._digitalParameterDict['target_device'] = []
         self._digitalParameterDict['TTL_start'] = []
@@ -152,15 +190,44 @@ class ScanControllerBase(SuperScanController):
             self._widget.setScanDimEnabled(i, not isContLaserPulses)
             self._widget.setScanSizeEnabled(positionerName, not isContLaserPulses)
             self._widget.setScanStepSizeEnabled(positionerName, not isContLaserPulses)
-            self._widget.setScanCenterPosEnabled(positionerName, not isContLaserPulses)
+            #self._widget.setScanStartPosEnabled(positionerName, not isContLaserPulses)
 
     def updatePixels(self):
         self.getParameters()
         for index, positionerName in enumerate(self.positioners):
             if float(self._analogParameterDict['axis_step_size'][index]) != 0:
-                pixels = round(float(self._analogParameterDict['axis_length'][index]) /
+                pixels = round((float(self._analogParameterDict['axis_length'][index])- float(self._analogParameterDict['axis_startpos'][index][0])) /
                                float(self._analogParameterDict['axis_step_size'][index]))
                 self._widget.setScanPixels(positionerName, pixels)
+                self._widget.setAllSliders( 
+                                           float(self._widget.scanPar['size' + positionerName].text()), 
+                                           float(self._widget.scanPar['start' + positionerName].text()),
+                                           float(self._widget.scanPar['start_time' + positionerName].text()),
+                                           float(self._widget.scanPar['scan_time_edit' + positionerName].text())
+                                           )
+
+    def updateParameters(self):
+        # for updating the parameters from the sliders changing
+        for index, positionerName in enumerate(self.positioners):
+            if positionerName=='OptotuneLens':
+                self._widget.setAllParams(positionerName, self._widget.scanSizeSlider.value()/20, 
+                                          self._widget.scanStartVoltageSlider.value()/20, 
+                                          self._widget.scanStartTimeSlider.value()/2, 
+                                          self._widget.scanTimeSlider.value()/2)
+
+
+
+
+
+    def updateScanTime(self):
+        self.getParameters()
+        #print("The sequence time is: inside the ScanControllerBase.py")
+        #print(self._analogParameterDict['sequence_time'])
+        for index, positionerName in enumerate(self.positioners):
+            if float(self._analogParameterDict['axis_step_size'][index]) != 0:
+                scantimes = round((float(self._analogParameterDict['axis_length'][index]) - float(self._analogParameterDict['axis_startpos'][index][0])) * float(self._analogParameterDict['sequence_time']) *1000.0 /
+                               float(self._analogParameterDict['axis_step_size'][index]), 3)
+                self._widget.setScanTime(positionerName, scantimes)
 
     def emitScanSignal(self, signal, *args):
         if not self._widget.isContLaserMode():  # Cont. laser pulses mode is not a real scan
@@ -202,7 +269,6 @@ class ScanControllerBase(SuperScanController):
             self._widget.setContLaserMode()
 
         self.setParameters()
-
 
 # Copyright (C) 2020-2021 ImSwitch developers
 # This file is part of ImSwitch.

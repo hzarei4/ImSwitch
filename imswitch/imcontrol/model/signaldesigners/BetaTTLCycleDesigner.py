@@ -61,7 +61,7 @@ class BetaTTLCycleDesigner(TTLCycleDesigner):
             for target, signal in signalDict.items():
                 signal = np.tile(signal, positions[0])
                 signal = np.append(signal, np.zeros(TTLZeroPadSamples, dtype='bool'))
-                signal = np.tile(signal, positions[1] * positions[2])
+                # signal = np.tile(signal, positions[1] * positions[2])
 
                 signalDict[target] = signal
 

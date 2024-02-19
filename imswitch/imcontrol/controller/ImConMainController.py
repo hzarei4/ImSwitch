@@ -144,6 +144,8 @@ class ImConMainController(MainController):
 
     def closeEvent(self):
         self.__logger.debug('Shutting down')
+        #self.__mainView.widgets['Scan'].ard.close()
+        self.controllers['Scan'].ard.close()
         self.__factory.closeAllCreatedControllers()
         self.__masterController.closeEvent()
 

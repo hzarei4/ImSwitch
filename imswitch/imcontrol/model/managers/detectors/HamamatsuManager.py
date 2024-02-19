@@ -27,7 +27,7 @@ class HamamatsuManager(DetectorManager):
 
         fullShape = (self._camera.getPropertyValue('image_width')[0],
                      self._camera.getPropertyValue('image_height')[0])
-
+        
         model = self._camera.camera_model.decode('utf-8')
 
         # Prepare parameters

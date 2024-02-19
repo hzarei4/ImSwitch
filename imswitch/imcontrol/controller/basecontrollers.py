@@ -96,10 +96,14 @@ class SuperScanController(ImConWidgetController):
         self._widget.sigSaveScanClicked.connect(self.saveScan)
         self._widget.sigLoadScanClicked.connect(self.loadScan)
         self._widget.sigRunScanClicked.connect(self.runScan)
+        self._widget.sigTakeImageClicked.connect(self.runTakeImage)
+        self._widget.sigSeqTimeParChanged.connect(self.updateScanTTLAttrs)
         self._widget.sigSeqTimeParChanged.connect(self.updateScanTTLAttrs)
         self._widget.sigStageParChanged.connect(self.updatePixels)
-        self._widget.sigStageParChanged.connect(self.updateScanStageAttrs)
+        self._widget.sigScanTimeChanged.connect(self.updateScanTime)
+        #self._widget.sigStageParChanged.connect(self.updateScanStageAttrs)
         self._widget.sigSignalParChanged.connect(self.updateScanTTLAttrs)
+        self._widget.sigSlidersChanged.connect(self.updateParameters)
 
     @property
     def parameterDict(self):
@@ -135,6 +139,16 @@ class SuperScanController(ImConWidgetController):
         pass
 
     @abstractmethod
+    def updateParameters(self):
+        """ Update number of pixels field in GUI. """
+        pass
+    
+    @abstractmethod
+    def updateScanTime(self):
+        """ Update number of scan time field in GUI. """
+        pass
+
+    @abstractmethod
     def emitScanSignal(self, signal, *args):
         """ Emit general scan signal. """
         pass
@@ -148,6 +162,11 @@ class SuperScanController(ImConWidgetController):
     @abstractmethod
     def scanDone(self):
         """ Called when scan is done, clean up and toggle GUI. """
+        pass
+    
+    @abstractmethod
+    def runTakeImage(self, n_imageg):
+        """ takes image with number of n """
         pass
 
     @APIExport(runOnUIThread=True)
@@ -252,6 +271,11 @@ class SuperScanController(ImConWidgetController):
     def runScan(self) -> None:
         """ Runs a scan with the set scanning parameters. """
         self.runScanAdvanced(sigScanStartingEmitted=False)
+
+    @APIExport(runOnUIThread=True)
+    def runTakeImage(self, n_images : float) -> None:
+        """ Runs a scan with the set scanning parameters. """
+        self.runTakeImage(n_images)
         
     def sendScanParameters(self):
         self.getParameters()

@@ -3,6 +3,7 @@ from ..basecontrollers import LiveUpdatedController
 from imswitch.imcommon.model import initLogger
 import numpy as np
 import re
+from imswitch.imcommon.model import APIExport
 
 class ImageController(LiveUpdatedController):
     """ Linked to ImageWidget."""
@@ -102,8 +103,12 @@ class ImageController(LiveUpdatedController):
     def setExposure(self, exp):
         detectorName = self._master.detectorsManager.getAllDeviceNames()[0]
         self.__logger.debug(f"Change exposure of {detectorName}, to {str(exp)}")
-        #self._master.detectorsManager[detectorName].setParameter('Readout time', exp)
+        #self._master._camera._setExposure(exp)
+        self._master.detectorsManager[detectorName].setParameter('Set exposure time', exp)
 
+    @APIExport(runOnUIThread=True)
+    def setExposureTime(self, exptime : float) -> None:
+        self.setExposure(exptime)
 
 # Copyright (C) 2020-2021 ImSwitch developers
 # This file is part of ImSwitch.

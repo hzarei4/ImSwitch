@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 from .basesignaldesigners import ScanDesigner
 from imswitch.imcommon.model import initLogger
@@ -17,6 +18,8 @@ class BetaScanDesigner(ScanDesigner):
                                     'axis_length',
                                     'axis_step_size',
                                     'axis_startpos',
+                                    'axis_start_time',
+                                    'scan_time_edit',
                                     'return_time']
 
     def checkSignalComp(self, scanParameters, setupInfo, scanInfo):
@@ -33,10 +36,10 @@ class BetaScanDesigner(ScanDesigner):
                                ' since this should be checked at program start-up')
             return None
 
-        if len(parameterDict['target_device']) != 3:
-            raise ValueError(f'{self.__class__.__name__} requires 3 target devices/axes')
+        if len(parameterDict['target_device']) != 1:
+            raise ValueError(f'{self.__class__.__name__} requires 1 target devices/axes')
 
-        for i in range(3):
+        for i in range(1):
             if len(parameterDict['axis_startpos'][i]) > 1:
                 raise ValueError(f'{self.__class__.__name__} does not support multi-axis'
                                  f' positioners')
@@ -45,26 +48,34 @@ class BetaScanDesigner(ScanDesigner):
                        for positioner in setupInfo.positioners.values() if positioner.forScanning]
 
         # Retrieve sizes
-        [fast_axis_size, middle_axis_size, slow_axis_size] = \
-            [(parameterDict['axis_length'][i] / convFactors[i]) for i in range(3)]
+        [fast_axis_size] = \
+            [(parameterDict['axis_length'][i] / convFactors[i]) for i in range(1)]
 
         # Retrieve step sizes
-        [fast_axis_step_size, middle_axis_step_size, slow_axis_step_size] = \
-            [(parameterDict['axis_step_size'][i] / convFactors[i]) for i in range(3)]
+        [fast_axis_step_size] = \
+            [(parameterDict['axis_step_size'][i] / convFactors[i]) for i in range(1)]
 
         # Retrive starting position
-        [fast_axis_start, middle_axis_start, slow_axis_start] = \
-            [(parameterDict['axis_startpos'][i][0] / convFactors[i]) for i in range(3)]
+        [fast_axis_start] = \
+            [(parameterDict['axis_startpos'][i][0] / convFactors[i]) for i in range(1)]
 
-        fast_axis_positions = 1 if fast_axis_size == 0 or fast_axis_step_size == 0 else \
-            1 + int(np.ceil(fast_axis_size / fast_axis_step_size))
-        middle_axis_positions = 1 if middle_axis_size == 0 or middle_axis_step_size == 0 else \
-            1 + int(np.ceil(middle_axis_size / middle_axis_step_size))
-        slow_axis_positions = 1 if slow_axis_size == 0 or slow_axis_step_size == 0 else \
-            1 + int(np.ceil(slow_axis_size / slow_axis_step_size))
+        # Retrive starting position
+        [fast_axis_start_time] = \
+            [(parameterDict['axis_start_time'][i][0] / convFactors[i]) for i in range(1)]
+        
+        # Retrive scan time edit
+        [fast_axis_scan_time_edit] = \
+            [(parameterDict['scan_time_edit'][i][0]) for i in range(1)]
+        
+        #fast_axis_positions = 1 if fast_axis_size == 0 or fast_axis_step_size == 0 else \
+        #    1 + int(np.ceil(fast_axis_size / fast_axis_step_size))
+
+
 
         sampleRate = setupInfo.scan.sampleRate
-        sequenceSamples = parameterDict['sequence_time'] * sampleRate
+        sequenceSamples =  float(fast_axis_scan_time_edit)/1000.0  * sampleRate
+
+
         returnSamples = parameterDict['return_time'] * sampleRate
         if not sequenceSamples.is_integer():
             self._logger.warning('Non-integer number of sequence samples, rounding up')
@@ -74,11 +85,12 @@ class BetaScanDesigner(ScanDesigner):
         returnSamples = int(np.ceil(returnSamples))
 
         # Make fast axis signal
-        rampSamples = fast_axis_positions * sequenceSamples
-        lineSamples = rampSamples + returnSamples
-        rampSignal = np.zeros(rampSamples)
-        self._logger.debug(fast_axis_positions)
-        rampValues = self.__makeRamp(fast_axis_start, fast_axis_size, fast_axis_positions)
+        #rampSamples = fast_axis_positions * sequenceSamples
+        #lineSamples = rampSamples + returnSamples
+        #rampSignal = np.zeros(rampSamples)
+        #self._logger.debug(fast_axis_positions)
+        
+        """
         for s in range(fast_axis_positions):
             start = s * sequenceSamples
             end = s * sequenceSamples + sequenceSamples
@@ -89,66 +101,70 @@ class BetaScanDesigner(ScanDesigner):
                 if (end - smooth - settling) > 0:
                     rampSignal[end - smooth - settling: end - settling] = self.__smoothRamp(rampValues[s], rampValues[s + 1], smooth)
                     rampSignal[end - settling:end] = rampValues[s + 1]
-
-        returnRamp = self.__smoothRamp(fast_axis_size, fast_axis_start, returnSamples)
-        fullLineSignal = np.concatenate((rampSignal, returnRamp))
-
-        fastAxisSignal = np.tile(fullLineSignal, middle_axis_positions * slow_axis_positions)
-        # Make middle axis signal
-        colSamples = middle_axis_positions * lineSamples
-        colValues = self.__makeRamp(middle_axis_start, middle_axis_size, middle_axis_positions)
-        fullSquareSignal = np.zeros(colSamples)
-        for s in range(middle_axis_positions):
-            fullSquareSignal[s * lineSamples: s * lineSamples + rampSamples] = colValues[s]
-
+        """
+        #returnRamp = self.__smoothRamp(fast_axis_size, fast_axis_start, returnSamples)
+        """
+        t1 = 0
+        for t in range(len(rampValues)):
+    
+            rampExactValues = np.linspace(fast_axis_start, fast_axis_size, num=fast_axis_positions)
             try:
-                fullSquareSignal[s * lineSamples + rampSamples:(s + 1) * lineSamples] = \
-                    self.__smoothRamp(colValues[s], colValues[s + 1], returnSamples)
-            except IndexError:
-                fullSquareSignal[s * lineSamples + rampSamples:(s + 1) * lineSamples] = \
-                    self.__smoothRamp(colValues[s], middle_axis_start, returnSamples)
+                if rampValues[t] >= rampExactValues[t1] and rampValues[t] < rampExactValues[t1+1]:
+                    rampValues[t] = rampExactValues[t1]
+                else:
+                    t1+=1
+                    rampValues[t] = rampExactValues[t1]
+            except:
+                pass
+        """
+        #rampValues = self.__makeRamp(fast_axis_start, fast_axis_size, sequenceSamples)
+        #rampValues = self.__smoothRamp(fast_axis_start, fast_axis_size, 0.6, sequenceSamples)  # exponential
+        #rampValues = self.__quadraticSig(fast_axis_start, fast_axis_size, 1.0, sequenceSamples)
+        rampValues = self.__mixedSig(fast_axis_start, fast_axis_size, sequenceSamples)
+        tempp = np.concatenate((fast_axis_start *np.ones(int(sampleRate*fast_axis_start_time/1000.0)), rampValues))
+        
+        # return ramp as a flipped triangular
+        #fullLineSignal = np.concatenate((tempp, np.flip(rampValues)))
 
-        middleAxisSignal = np.tile(fullSquareSignal, slow_axis_positions)
+        # return ramp as a sharp edge
+        fullLineSignal_1 = np.concatenate((tempp, fast_axis_size *np.ones(int(sampleRate*10.0/1000.0))))
 
-        # Make slow axis signal
-        sliceSamples = slow_axis_positions * colSamples
-        sliceValues = self.__makeRamp(slow_axis_start, slow_axis_size, slow_axis_positions)
-        fullCubeSignal = np.zeros(sliceSamples)
-        for s in range(slow_axis_positions):
-            fullCubeSignal[s * colSamples:(s + 1) * colSamples - returnSamples] = sliceValues[s]
+        fastAxisSignal = np.concatenate((fullLineSignal_1, fast_axis_start *np.ones(1))) # fullLineSignal
 
-            try:
-                fullCubeSignal[(s + 1) * colSamples - returnSamples:(s + 1) * colSamples] = \
-                    self.__smoothRamp(sliceValues[s], sliceValues[s + 1], returnSamples)
-            except IndexError:
-                fullCubeSignal[(s + 1) * colSamples - returnSamples:(s + 1) * colSamples] = \
-                    self.__smoothRamp(sliceValues[s], slow_axis_start, returnSamples)
-        slowAxisSignal = fullCubeSignal
-
+        
         sig_dict = {parameterDict['target_device'][0]: fastAxisSignal,
-                    parameterDict['target_device'][1]: middleAxisSignal,
-                    parameterDict['target_device'][2]: slowAxisSignal}
+                    }
 
         # scanInfoDict, for parameters that are important to relay to TTLCycleDesigner and/or image
         # acquisition managers
         scanInfoDict = {
-            'positions': [fast_axis_positions, middle_axis_positions, slow_axis_positions],
+            'positions': [1], #[fast_axis_positions],
             'return_time': parameterDict['return_time']
         }
         return sig_dict, scanInfoDict['positions'], scanInfoDict
 
     def __makeRamp(self, start, end, samples):
-        return np.linspace(float(start), float(end), num=samples)
+        return np.linspace(float(start), float(end), num=samples-1)
 
-    def __smoothRamp(self, start, end, samples):
+    def __smoothRamp(self, start, end, curve_half, samples):
         start = float(start)
         end = float(end)
-        curve_half = 0.6
+        curve_half = float(curve_half)
         n = int(np.floor(curve_half * samples))
         x = np.linspace(0, np.pi / 2, num=n, endpoint=True)
         signal = start + (end - start) * np.sin(x)
         signal = np.append(signal, end * np.ones(int(np.ceil((1 - curve_half) * samples))))
         return signal
+    
+    def __quadraticSig(self, start, end, coeff, samples):
+        return (-1.0 * coeff *( np.linspace(float(-1), float(0), num=samples-1))**2 + 1.0) * (end -start) +start
+
+    def __mixedSig(self, start, end, samples):
+        n1 = np.linspace(float(0.0), float(0.5), num=int((samples-1)/2.0))
+        n2 = 4*np.linspace(float(0.5), float(1), num=int((samples-1)/2.0)) -2.0 + 0.5
+        #(1.0 * coeff *( np.linspace(float(0.5), float(1), num=int((samples-1)/2.0)))**4 + 0.0) - (0.5)**4 +0.5
+    
+        return (np.concatenate((n1, n2)) / max(n2)) * (end -start) +start
 
 
 # Copyright (C) 2020, 2021 TestaLab
