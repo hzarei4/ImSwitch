@@ -16,6 +16,7 @@ class SuperScanWidget(Widget):
     sigLoadScanClicked = QtCore.Signal()
     sigRunScanClicked = QtCore.Signal()
     sigTakeImageClicked = QtCore.Signal()
+    sigScanInitClicked = QtCore.Signal() #### here
     sigSeqTimeParChanged = QtCore.Signal()
     sigStageParChanged = QtCore.Signal()
     sigSignalParChanged = QtCore.Signal()
@@ -38,7 +39,7 @@ class SuperScanWidget(Widget):
         self.scanDims = []
 
         self.scanButton = guitools.BetterPushButton('Run Scan')
-
+        self.ScanInitButton = guitools.BetterPushButton('Scan Init.')
         self.TakeImageButton = guitools.BetterPushButton('Take Images!')
 
         self.repeatBox = QtWidgets.QCheckBox('Repeat')
@@ -65,6 +66,7 @@ class SuperScanWidget(Widget):
         self.loadScanBtn.clicked.connect(self.sigLoadScanClicked)
         self.scanButton.clicked.connect(self.sigRunScanClicked)
         self.TakeImageButton.clicked.connect(self.sigTakeImageClicked)
+        self.ScanInitButton.clicked.connect(self.sigScanInitClicked)
         
 
 
@@ -119,6 +121,11 @@ class SuperScanWidget(Widget):
         self.scanButton.setEnabled(not checked)
         self.scanButton.setCheckable(checked)
         self.scanButton.setChecked(checked)
+    
+    def setScanInitButtonChecked(self, checked):
+        self.ScanInitButton.setEnabled(not checked)
+        self.ScanInitButton.setCheckable(checked)
+        self.ScanInitButton.setChecked(checked)
 
     def setTakeImageButtonChecked(self, checked):
         self.TakeImageButton.setEnabled(not checked)
@@ -226,7 +233,8 @@ class ScanWidgetBase(SuperScanWidget):
         self.grid.addWidget(self.loadScanBtn, currentRow, 0)
         self.grid.addWidget(self.saveScanBtn, currentRow, 1)
         self.grid.addWidget(self.scanRadio, currentRow, 2)
-        self.grid.addWidget(self.contLaserPulsesRadio, currentRow, 3)
+        #self.grid.addWidget(self.contLaserPulsesRadio, currentRow, 3)
+        self.grid.addWidget(self.ScanInitButton, currentRow, 3)
         self.grid.addItem(
             QtWidgets.QSpacerItem(40, 20,
                                   QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum),

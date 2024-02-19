@@ -72,9 +72,21 @@ class ScanControllerBase(SuperScanController):
         self.ard.write((str(n_images) + '\n').encode())
 
 
-    def writeAnalogOutput(self):
+    @APIExport(runOnUIThread=True)
+    def runScanInit(self, *, recalculateSignals=True) -> None:
         try:
-            self._master.nidaqManager.runScan(self.signalDict, self.scanInfoDict)
+            self._widget.scanButton.setStyleSheet("background-color: green")
+            if recalculateSignals or self.signalDict is None or self.scanInfoDict is None:
+                self.getParameters()
+                try:
+                    self.signalDict, self.scanInfoDict = self._master.scanManager.makeFullScan(
+                        self._analogParameterDict, self._digitalParameterDict,
+                        staticPositioner=self._widget.isContLaserMode()
+                    )
+                except TypeError:
+                    self._logger.error(traceback.format_exc())
+            #self._widget.setScanInitButtonChecked(True)
+            self._master.nidaqManager.runScanInitialization(self.signalDict, self.scanInfoDict)
         except Exception:
             self._logger.error(traceback.format_exc())
 

@@ -96,6 +96,7 @@ class SuperScanController(ImConWidgetController):
         self._widget.sigSaveScanClicked.connect(self.saveScan)
         self._widget.sigLoadScanClicked.connect(self.loadScan)
         self._widget.sigRunScanClicked.connect(self.runScan)
+        self._widget.sigScanInitClicked.connect(self.runScanInit)
         self._widget.sigTakeImageClicked.connect(self.runTakeImage)
         self._widget.sigSeqTimeParChanged.connect(self.updateScanTTLAttrs)
         self._widget.sigSeqTimeParChanged.connect(self.updateScanTTLAttrs)
@@ -164,6 +165,11 @@ class SuperScanController(ImConWidgetController):
         """ Called when scan is done, clean up and toggle GUI. """
         pass
     
+    @abstractmethod
+    def runScanInit(self, n_imageg):
+        """ runs scan initialization """
+        pass
+
     @abstractmethod
     def runTakeImage(self, n_imageg):
         """ takes image with number of n """
@@ -276,6 +282,11 @@ class SuperScanController(ImConWidgetController):
     def runTakeImage(self, n_images : float) -> None:
         """ Runs a scan with the set scanning parameters. """
         self.runTakeImage(n_images)
+
+    @APIExport(runOnUIThread=True)
+    def runScanInit(self,) -> None:
+        """ Runs scan initialization  ---->>>>>> later: with the set scanning parameters. """
+        self.runScanInit()
         
     def sendScanParameters(self):
         self.getParameters()
