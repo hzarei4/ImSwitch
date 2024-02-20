@@ -63,7 +63,7 @@ class ScanControllerBase(SuperScanController):
             self.plotSignalGraph()
 
     def runTakeImage(self) -> None:
-        print("taking Image!")
+        #print("taking Image!")
         self.ard.write((str(self._widget.nImages.text()) + '\n').encode())
 
 
@@ -72,10 +72,14 @@ class ScanControllerBase(SuperScanController):
         self.ard.write((str(n_images) + '\n').encode())
 
 
+    def closeScan(self) -> None:
+        self._master.nidaqManager.closeSignalReceived()
+
+
     @APIExport(runOnUIThread=True)
     def runScanInit(self, *, recalculateSignals=True) -> None:
         try:
-            self._widget.scanButton.setStyleSheet("background-color: green")
+            self._widget.scanButton.setStyleSheet("background-color:rgb(0, 100, 0)")
             if recalculateSignals or self.signalDict is None or self.scanInfoDict is None:
                 self.getParameters()
                 try:
@@ -233,6 +237,7 @@ class ScanControllerBase(SuperScanController):
 
     def updateScanTime(self):
         self.getParameters()
+        """
         #print("The sequence time is: inside the ScanControllerBase.py")
         #print(self._analogParameterDict['sequence_time'])
         for index, positionerName in enumerate(self.positioners):
@@ -240,6 +245,7 @@ class ScanControllerBase(SuperScanController):
                 scantimes = round((float(self._analogParameterDict['axis_length'][index]) - float(self._analogParameterDict['axis_startpos'][index][0])) * float(self._analogParameterDict['sequence_time']) *1000.0 /
                                float(self._analogParameterDict['axis_step_size'][index]), 3)
                 self._widget.setScanTime(positionerName, scantimes)
+        """
 
     def emitScanSignal(self, signal, *args):
         if not self._widget.isContLaserMode():  # Cont. laser pulses mode is not a real scan

@@ -255,7 +255,9 @@ class NidaqManager(SignalInterface):
         try:
             self.aoTask.stop()
             self.aoTask.close()
-            del self.tasks
+            #del self.tasks
+            self.tasks = {}
+            self.__logger.debug('cleared old scan')
             
         except:
             pass
@@ -342,7 +344,7 @@ class NidaqManager(SignalInterface):
                 
                 self.test_writer = AnalogSingleChannelWriter(self.aoTask.out_stream)
                 self.test_writer.write_many_sample(np.array(AOsignals).squeeze())
-                print("Write is successful!")
+                # print("Write is successful!")
 
         except:
             self.sigScanBuildFailed.emit()
@@ -361,7 +363,7 @@ class NidaqManager(SignalInterface):
             self.signalSent = False
             try:
                 
-                if self.tasks: #len(AOsignals) > 0:
+                if True: #self.tasks: #len(AOsignals) > 0:
 
                     # Important to squeeze the array, otherwise we might get an "invalid number of
                     # channels" error
@@ -372,7 +374,7 @@ class NidaqManager(SignalInterface):
                     self.aoTaskWaiter.sigWaitDone.connect(
                         lambda: self.taskDone('ao', self.aoTaskWaiter)
                     )
-                    clockDO = r'ao/SampleClock'
+                    # clockDO = r'ao/SampleClock'
                 """
                 if len(DOsignals) > 0:
                     scanSampsInScan = len(DOsignals[0])
@@ -418,8 +420,15 @@ class NidaqManager(SignalInterface):
                     self.tasks['ao'].start()
                     self.aoTaskWaiter.start()
                 self.sigScanStarted.emit()
-                self.__logger.info('Nidaq scan started!')
+                # self.__logger.info('Nidaq scan started!')
                 
+    def closeSignalReceived(self):
+        try:
+            self.tasks['ao'].close()
+            del self.tasks['ao']
+        except:
+            pass
+
 
     def stopTask(self, taskName):
         self.tasks[taskName].stop()
@@ -441,7 +450,7 @@ class NidaqManager(SignalInterface):
     def scanDone(self):
         self.signalSent = True
         self.busy = False
-        self.__logger.info('Nidaq scan finished!')
+        # self.__logger.info('Nidaq scan finished!')
         self.sigScanDone.emit()
 
     def runContinuous(self, digital_targets, digital_signals):

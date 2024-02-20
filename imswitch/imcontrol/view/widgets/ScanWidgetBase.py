@@ -121,7 +121,29 @@ class SuperScanWidget(Widget):
         self.scanButton.setEnabled(not checked)
         self.scanButton.setCheckable(checked)
         self.scanButton.setChecked(checked)
+
+        self.scanSizeSlider.setEnabled(not checked)
+        #self.scanSizeSlider.setCheckable(checked)
+        #self.scanSizeSlider.setChecked(checked)
+
+        self.scanStartVoltageSlider.setEnabled(not checked)
+        #self.scanStartVoltageSlider.setCheckable(checked)
+        #self.scanStartVoltageSlider.setChecked(checked)
+
+        self.scanStartTimeSlider.setEnabled(not checked)
+        #self.scanStartTimeSlider.setCheckable(checked)
+        #self.scanStartTimeSlider.setChecked(checked)
+        
+        self.scanTimeSlider.setEnabled(not checked)
+        #self.scanTimeSlider.setCheckable(checked)
+        #self.scanTimeSlider.setChecked(checked)
+
+        self.sizePar.setEnabled(not checked)
+        self.startPar.setEnabled(not checked)
+        self.startTime.setEnabled(not checked)
+        self.scanFullTimeEditPar.setEnabled(not checked)
     
+
     def setScanInitButtonChecked(self, checked):
         self.ScanInitButton.setEnabled(not checked)
         self.ScanInitButton.setCheckable(checked)
@@ -166,10 +188,10 @@ class SuperScanWidget(Widget):
         #self.scanTimeSlider.setValue(scanTime)
         pass # Bug!
 
-
+    """
     def setScanTime(self, positionerName, scantimes):
         self.scanFullTime.setText(str(scantimes))
-
+    """
     @abstractmethod
     def unsetTTL(self, deviceName):
         pass
@@ -233,8 +255,11 @@ class ScanWidgetBase(SuperScanWidget):
         self.grid.addWidget(self.loadScanBtn, currentRow, 0)
         self.grid.addWidget(self.saveScanBtn, currentRow, 1)
         self.grid.addWidget(self.scanRadio, currentRow, 2)
+
         #self.grid.addWidget(self.contLaserPulsesRadio, currentRow, 3)
-        self.grid.addWidget(self.ScanInitButton, currentRow, 3)
+        # self.grid.addWidget(self.ScanInitButton, currentRow, 3)
+        
+        
         self.grid.addItem(
             QtWidgets.QSpacerItem(40, 20,
                                   QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum),
@@ -242,6 +267,8 @@ class ScanWidgetBase(SuperScanWidget):
         )
         self.grid.addWidget(self.repeatBox, currentRow, 5)
         self.grid.addWidget(self.scanButton, currentRow, 6)
+        self.scanButton.setStyleSheet("background-color:rgb(255, 0, 0)")
+
         self.grid.addWidget(self.TakeImageButton, currentRow, 7)
         self.nImages = QtWidgets.QLineEdit('2')
         self.grid.addWidget(self.nImages, currentRow, 8)
@@ -273,7 +300,7 @@ class ScanWidgetBase(SuperScanWidget):
         scandimLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom)
         scantimeLabel.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignBottom)
         self.grid.addWidget(sizeLabel, currentRow, 2)
-        self.grid.addWidget(stepLabel, currentRow, 3)
+        #self.grid.addWidget(stepLabel, currentRow, 3)
         #self.grid.addWidget(pixelsLabel, currentRow, 3)
         self.grid.addWidget(startLabel, currentRow, 1)
         self.grid.addWidget(startTimeLabel, currentRow, 5)
@@ -282,31 +309,31 @@ class ScanWidgetBase(SuperScanWidget):
         currentRow += 1
 
         for index, positionerName in enumerate(positionerNames):
-            
+            # 
             # Scan params
-            sizePar = QtWidgets.QLineEdit('5')
-            self.scanPar['size' + positionerName] = sizePar
+            self.sizePar = QtWidgets.QLineEdit('5')
+            self.scanPar['size' + positionerName] = self.sizePar
             stepSizePar = QtWidgets.QLineEdit('0.1')
             stepSizePar.setEnabled(True)
             self.scanPar['stepSize' + positionerName] = stepSizePar
             numPixelsPar = QtWidgets.QLineEdit('50')
             numPixelsPar.setEnabled(False)
             self.scanPar['pixels' + positionerName] = numPixelsPar
-            startPar = QtWidgets.QLineEdit('0')
-            self.scanPar['start' + positionerName] = startPar
-            startTime = QtWidgets.QLineEdit('0')
-            self.scanPar['start_time' + positionerName] = startTime
+            self.startPar = QtWidgets.QLineEdit('0')
+            self.scanPar['start' + positionerName] = self.startPar
+            self.startTime = QtWidgets.QLineEdit('17')
+            self.scanPar['start_time' + positionerName] = self.startTime
             self.grid.addWidget(QtWidgets.QLabel(positionerName), currentRow, 0)
-            self.grid.addWidget(sizePar, currentRow, 2)
-            self.grid.addWidget(stepSizePar, currentRow, 3)
+            self.grid.addWidget(self.sizePar, currentRow, 2)
+            #self.grid.addWidget(stepSizePar, currentRow, 3)
             #self.grid.addWidget(numPixelsPar, currentRow, 3)
-            self.grid.addWidget(startPar, currentRow, 1)
-            self.grid.addWidget(startTime, currentRow, 5)
+            self.grid.addWidget(self.startPar, currentRow, 1)
+            self.grid.addWidget(self.startTime, currentRow, 5)
 
             # Full scan time - active line edit:
-            scanFullTimeEditPar = QtWidgets.QLineEdit(str(22))
-            self.grid.addWidget(scanFullTimeEditPar, currentRow, 8)
-            self.scanPar['scan_time_edit' + positionerName] = scanFullTimeEditPar
+            self.scanFullTimeEditPar = QtWidgets.QLineEdit(str(27))
+            self.grid.addWidget(self.scanFullTimeEditPar, currentRow, 8)
+            self.scanPar['scan_time_edit' + positionerName] = self.scanFullTimeEditPar
 
             if positionerName=='OptotuneLens':
                 self.stepSizeSlider = QtWidgets.QSlider(QtCore.Qt.Vertical)
@@ -323,7 +350,7 @@ class ScanWidgetBase(SuperScanWidget):
                 self.scanSizeSlider.setTickInterval(1)
                 self.scanSizeSlider.setValue(100)
                 self.scanSizeSlider.valueChanged.connect(self.sigSlidersChanged)
-
+                
                 self.scanStartVoltageSlider = QtWidgets.QSlider(QtCore.Qt.Vertical)
                 self.grid.addWidget(self.scanStartVoltageSlider, currentRow+1, 1)
                 self.scanStartVoltageSlider.setRange(0, 100)
@@ -333,17 +360,18 @@ class ScanWidgetBase(SuperScanWidget):
 
                 self.scanStartTimeSlider = QtWidgets.QSlider(QtCore.Qt.Vertical)
                 self.grid.addWidget(self.scanStartTimeSlider, currentRow+1, 5)
-                self.scanStartTimeSlider.setRange(0, 100)
-                self.scanStartTimeSlider.setSingleStep(1)
-                self.scanStartTimeSlider.setTickInterval(1)
+                self.scanStartTimeSlider.setRange(0, 40)
+                self.scanStartTimeSlider.setSingleStep(0.5)
+                self.scanStartTimeSlider.setTickInterval(0.5)
+                self.scanStartTimeSlider.setValue(34)
                 self.scanStartTimeSlider.valueChanged.connect(self.sigSlidersChanged)
 
                 self.scanTimeSlider = QtWidgets.QSlider(QtCore.Qt.Vertical)
                 self.grid.addWidget(self.scanTimeSlider, currentRow+1, 8)
-                self.scanTimeSlider.setRange(0, 100)
-                self.scanTimeSlider.setSingleStep(1)
-                self.scanTimeSlider.setTickInterval(1)
-                self.scanTimeSlider.setValue(45)
+                self.scanTimeSlider.setRange(0, 60)
+                self.scanTimeSlider.setSingleStep(0.5)
+                self.scanTimeSlider.setTickInterval(0.5)
+                self.scanTimeSlider.setValue(54)
                 self.scanTimeSlider.valueChanged.connect(self.sigSlidersChanged)
 
 
@@ -384,12 +412,6 @@ class ScanWidgetBase(SuperScanWidget):
         # Add dwell time parameter
         #self.grid.addWidget(QtWidgets.QLabel('Dwell (ms):'), currentRow, 5)
         #self.grid.addWidget(self.seqTimePar, currentRow, 6)
-
-        # Full scan time - deactivated line edit:
-        self.scanFullTime = QtWidgets.QLineEdit(str((float(sizePar.text())-float(startPar.text())/float(self.seqTimePar.text()))))
-        self.scanFullTime.setEnabled(False)
-        #self.grid.addWidget(self.scanFullTime, currentRow, 7)
-        self.seqTimePar.textChanged.connect(self.sigScanTimeChanged)
 
         currentRow += 1
 

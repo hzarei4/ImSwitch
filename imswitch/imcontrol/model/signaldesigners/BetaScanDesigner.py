@@ -66,7 +66,7 @@ class BetaScanDesigner(ScanDesigner):
         # Retrive scan time edit
         [fast_axis_scan_time_edit] = \
             [(parameterDict['scan_time_edit'][i][0]) for i in range(1)]
-        
+
         #fast_axis_positions = 1 if fast_axis_size == 0 or fast_axis_step_size == 0 else \
         #    1 + int(np.ceil(fast_axis_size / fast_axis_step_size))
 
@@ -127,7 +127,7 @@ class BetaScanDesigner(ScanDesigner):
         #fullLineSignal = np.concatenate((tempp, np.flip(rampValues)))
 
         # return ramp as a sharp edge
-        fullLineSignal_1 = np.concatenate((tempp, fast_axis_size *np.ones(int(sampleRate*10.0/1000.0))))
+        fullLineSignal_1 = np.concatenate((tempp, fast_axis_size *np.ones(int(sampleRate*5.0/1000.0))))
 
         fastAxisSignal = np.concatenate((fullLineSignal_1, fast_axis_start *np.ones(1))) # fullLineSignal
 

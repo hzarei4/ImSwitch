@@ -105,6 +105,8 @@ class SuperScanController(ImConWidgetController):
         #self._widget.sigStageParChanged.connect(self.updateScanStageAttrs)
         self._widget.sigSignalParChanged.connect(self.updateScanTTLAttrs)
         self._widget.sigSlidersChanged.connect(self.updateParameters)
+        
+        self._widget.sigSlidersChanged.connect(self.runScanInit)
 
     @property
     def parameterDict(self):
